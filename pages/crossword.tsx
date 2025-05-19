@@ -1,186 +1,164 @@
-import { useEffect, useState } from 'react';
-import { Box, Heading, VStack, HStack, Input, Button, Text, Grid, GridItem } from '@chakra-ui/react';
+// pages/crossword.tsx
+import { useState, useEffect } from 'react';
+import { Box, Flex, Grid, GridItem, Input, Button, Text, VStack, HStack } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 
-const MotionBox = motion.create(Box);
-
-// Définition de la grille 8x8
-const GRID_SIZE = 8;
-const initialGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
-
-// Mots et positions (6 mots, tous dans 8x8)
-const words = [
-  { word: 'ZKP', row: 2, col: 3, direction: 'horizontal' }, // 3 lettres
-  { word: 'EDGE', row: 4, col: 2, direction: 'horizontal' }, // 4 lettres
-  { word: 'NET', row: 5, col: 3, direction: 'horizontal' }, // 3 lettres
-  { word: 'BLOCK', row: 2, col: 2, direction: 'vertical' }, // 5 lettres
-  { word: 'PROOF', row: 3, col: 2, direction: 'vertical' }, // 5 lettres
-  { word: 'NODE', row: 3, col: 4, direction: 'vertical' }, // 4 lettres
+// Grille correcte avec mots : Across (EDGE, NFT), Down (ZKP, BLOCK, PROOF, NODE)
+const correctGrid = [
+  [' ', ' ', 'B', 'L', 'O', 'C', 'K', ' '],
+  [' ', ' ', ' ', ' ', ' ', ' ', 'Z', ' '],
+  [' ', ' ', 'P', ' ', ' ', ' ', 'K', ' '],
+  [' ', ' ', 'R', ' ', ' ', ' ', 'P', ' '],
+  [' ', ' ', 'O', ' ', ' ', ' ', ' ', 'N'],
+  [' ', ' ', 'O', ' ', ' ', ' ', ' ', 'O'],
+  [' ', 'N', 'F', 'T', ' ', ' ', ' ', 'D'],
+  [' ', ' ', ' ', ' ', 'E', 'D', 'G', 'E'],
 ];
 
-// Indices en anglais
+// Grille initiale : vide pour les cases actives, espaces pour les inactives
+const initialGrid = correctGrid.map(row => row.map(cell => (cell === ' ' ? ' ' : '')));
+
+// Numéros des indices
+const clueNumbers = [
+  { row: 0, col: 2, number: 4, direction: 'across' }, // BLOCK
+  { row: 1, col: 6, number: 1, direction: 'down' }, // ZKP
+  { row: 2, col: 2, number: 5, direction: 'down' }, // PROOF
+  { row: 7, col: 4, number: 2, direction: 'across' }, // EDGE
+  { row: 6, col: 1, number: 3, direction: 'across' }, // NFT
+  { row: 4, col: 7, number: 6, direction: 'down' }, // NODE
+];
+
+// Indices affichés
 const clues = {
-  horizontal: [
-    { number: 1, clue: 'Zero-knowledge proof (3 letters)', row: 2, col: 3 },
-    { number: 2, clue: 'LayerEdge component (4 letters)', row: 4, col: 2 },
-    { number: 3, clue: 'Network shorthand (3 letters)', row: 5, col: 3 },
+  across: [
+    { number: 2, clue: 'Boundary of the network (4 letters)', answer: 'EDGE' },
+    { number: 4, clue: 'Blockchain unit (5 letters)', answer: 'BLOCK' },
+    { number: 3, clue: 'Non-Fungible Token (3 letters)', answer: 'NFT' },
   ],
-  vertical: [
-    { number: 4, clue: 'Blockchain unit (5 letters)', row: 2, col: 2 },
-    { number: 5, clue: 'Verification method (5 letters)', row: 3, col: 2 },
-    { number: 6, clue: 'Network participant (4 letters)', row: 3, col: 4 },
+  down: [
+    { number: 1, clue: 'Zero Knowledge Proof (3 letters)', answer: 'ZKP' },
+    { number: 5, clue: 'Verification in zk (5 letters)', answer: 'PROOF' },
+    { number: 6, clue: 'Network participant (4 letters)', answer: 'NODE' },
   ],
 };
 
-// Solution correcte
-const correctGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
-words.forEach(({ word, row, col, direction }) => {
-  for (let i = 0; i < word.length; i++) {
-    if (direction === 'horizontal' && col + i < GRID_SIZE) {
-      correctGrid[row][col + i] = word[i];
-    } else if (direction === 'vertical' && row + i < GRID_SIZE) {
-      correctGrid[row + i][col] = word[i];
-    }
-  }
-});
-
 export default function Crossword() {
-  const [grid, setGrid] = useState<string[][]>(initialGrid);
-  const [message, setMessage] = useState('');
+  const [grid, setGrid] = useState<string[][]>(JSON.parse(JSON.stringify(initialGrid)));
   const [showSolution, setShowSolution] = useState(false);
+  const [message, setMessage] = useState('');
 
-  // Log pour déboguer l'initialisation
   useEffect(() => {
     console.log('Correct Grid:', correctGrid);
-    console.log('Initial Grid:', grid);
-  }, []);
+    console.log('Initial Grid:', initialGrid);
+    console.log('Current Grid:', grid);
+  }, [grid]);
 
   const handleInputChange = (row: number, col: number, value: string) => {
-    if (showSolution) return; // Bloquer les modifications en mode solution
-    const newGrid = grid.map((r) => [...r]);
+    if (showSolution || correctGrid[row][col] === ' ') return;
+    const newGrid = grid.map(r => [...r]);
     newGrid[row][col] = value.toUpperCase().slice(0, 1);
     setGrid(newGrid);
     console.log(`Updated Grid [${row},${col}]: ${newGrid[row][col]}`);
   };
 
-  const isCorrect = () => {
-    let isValid = true;
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (correctGrid[i][j] !== '') {
-          if (grid[i][j] !== correctGrid[i][j]) {
-            console.log(`Mismatch at [${i},${j}]: Expected ${correctGrid[i][j]}, got ${grid[i][j]}`);
-            isValid = false;
-          }
-        }
-      }
-    }
-    console.log('User Grid:', grid);
-    return isValid;
-  };
-
-  const handleCheck = () => {
-    if (showSolution) {
-      setMessage('Solution is displayed!');
-      return;
-    }
-    if (isCorrect()) {
-      setMessage('Congratulations! Crossword solved!');
-    } else {
-      setMessage('Some answers are incorrect. Try again!');
-    }
+  const checkAnswers = () => {
+    const isCorrect = grid.every((row, i) =>
+      row.every((cell, j) => cell === correctGrid[i][j])
+    );
+    setMessage(isCorrect ? 'Congratulations!' : 'Some answers are incorrect');
+    console.log('Check Answers:', { isCorrect, grid });
   };
 
   const handleShowSolution = () => {
     if (showSolution) {
-      // Revenir à la grille utilisateur
-      setGrid(grid.map((row) => [...row])); // Forcer un re-rendu
+      setGrid(JSON.parse(JSON.stringify(initialGrid)));
       setShowSolution(false);
       setMessage('');
     } else {
-      // Afficher la solution
-      setGrid(correctGrid.map((row) => [...row]));
+      setGrid(correctGrid.map(row => [...row]));
       setShowSolution(true);
       setMessage('Solution displayed!');
     }
+    console.log('Show Solution:', { showSolution: !showSolution, grid });
   };
 
   return (
-    <MotionBox
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1 }}
-      p={4}
-      minH="100vh"
+    <Flex
+      direction={{ base: 'column', md: 'row' }}
       bg="gray.900"
+      minH="100vh"
+      maxH="100vh"
+      p={{ base: 3, md: 4 }}
+      align="flex-start"
+      overflow="hidden"
     >
-      <Heading mb={4} fontSize="3xl" textShadow="0 0 8px #8B00FF">
-        EdgenOS Crossword
-      </Heading>
-      <Text mb={4} color="gray.300">
-        Solve the crossword puzzle to test your knowledge of EdgenOS and LayerEdge.
-      </Text>
-      <HStack spacing={8} align="start">
-        {/* Grille */}
+      {/* Grille et boutons à gauche */}
+      <VStack
+        spacing={{ base: 3, md: 4 }}
+        align="center"
+        flexShrink={0}
+        mr={{ base: 0, md: 4 }}
+      >
+        <Text
+          fontSize={{ base: 'xl', md: '2xl' }}
+          color="neon.blue"
+          fontWeight="bold"
+        >
+          EdgenOS Crossword
+        </Text>
         <Grid
-          templateColumns="repeat(8, 60px)"
-          templateRows="repeat(8, 60px)"
+          templateColumns="repeat(8, 50px)"
+          templateRows="repeat(8, 50px)"
           gap="2px"
           bg="gray.800"
-          p={2}
-          borderRadius="md"
-          boxShadow="0 0 12px rgba(0, 209, 255, 0.2)"
+          as={motion.div}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
         >
           {grid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-              const isActive = correctGrid[rowIndex][colIndex] !== '';
-              const clueNumber = clues.horizontal.find(
-                (clue) => clue.row === rowIndex && clue.col === colIndex
-              )?.number || clues.vertical.find(
-                (clue) => clue.row === rowIndex && clue.col === colIndex
-              )?.number;
-
+              const isActive = correctGrid[rowIndex][colIndex] !== ' ';
+              const clue = clueNumbers.find(
+                c => c.row === rowIndex && c.col === colIndex
+              );
               return (
                 <GridItem
                   key={`${rowIndex}-${colIndex}`}
-                  w="60px"
-                  h="60px"
+                  w="50px"
+                  h="50px"
                   bg={isActive ? '#1A1A3D' : 'gray.900'}
-                  border={isActive ? '2px solid #00D1FF' : '1px solid gray.700'}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
+                  border="1px"
+                  borderColor="neon.blue"
                   position="relative"
+                  as={motion.div}
+                  whileHover={{ scale: 1.05 }}
                 >
-                  {clueNumber && (
+                  {clue && (
                     <Text
                       position="absolute"
                       top="2px"
                       left="2px"
-                      fontSize="xs"
-                      color="#8B00FF"
-                      fontWeight="bold"
+                      fontSize="12px"
+                      color="neon.purple"
                     >
-                      {clueNumber}
+                      {clue.number}
                     </Text>
                   )}
                   {isActive && (
                     <Input
                       value={cell}
-                      onChange={(e) => handleInputChange(rowIndex, colIndex, e.target.value)}
+                      onChange={e => handleInputChange(rowIndex, colIndex, e.target.value)}
                       maxLength={1}
                       textAlign="center"
-                      fontSize="xl"
-                      fontWeight="bold"
-                      color={showSolution ? '#FF00FF' : '#00D1FF'} // Magenta pour la solution
+                      fontSize="md"
+                      color={showSolution ? 'magenta' : 'neon.blue'}
                       bg="transparent"
                       border="none"
-                      w="100%"
                       h="100%"
-                      _focus={{ boxShadow: '0 0 8px #8B00FF' }}
-                      textTransform="uppercase"
-                      readOnly={showSolution} // Lecture seule en mode solution
-                      zIndex={1}
+                      w="100%"
+                      _focus={{ outline: 'none' }}
+                      readOnly={showSolution}
+                      zIndex={2}
                     />
                   )}
                 </GridItem>
@@ -188,56 +166,66 @@ export default function Crossword() {
             })
           )}
         </Grid>
-
-        {/* Indices */}
-        <VStack align="start" spacing={4} minW="300px">
-          <Box>
-            <Heading size="md" mb={2} color="#00D1FF">
-              Across
-            </Heading>
-            {clues.horizontal.map((clue) => (
-              <Text key={clue.number} color="gray.300">
-                {clue.number}. {clue.clue}
-              </Text>
-            ))}
-          </Box>
-          <Box>
-            <Heading size="md" mb={2} color="#00D1FF">
-              Down
-            </Heading>
-            {clues.vertical.map((clue) => (
-              <Text key={clue.number} color="gray.300">
-                {clue.number}. {clue.clue}
-              </Text>
-            ))}
-          </Box>
-        </VStack>
-      </HStack>
-
-      <HStack mt={4} spacing={4}>
-        <Button
-          bg="neon.purple"
-          color="white"
-          _hover={{ boxShadow: '0 0 8px #8B00FF' }}
-          onClick={handleCheck}
-        >
-          Check Answers
-        </Button>
-        <Button
-          bg={showSolution ? 'gray.600' : 'neon.blue'}
-          color="white"
-          _hover={{ boxShadow: `0 0 8px ${showSolution ? '#666' : '#00D1FF'}` }}
-          onClick={handleShowSolution}
-        >
-          {showSolution ? 'Hide Solution' : 'Show Solution'}
-        </Button>
-      </HStack>
-
-      {message && (
-        <Text mt={4} color={message.includes('Congratulations') ? 'green.300' : 'red.300'}>
-          {message}
+        <HStack spacing={2}>
+          <Button
+            onClick={checkAnswers}
+            bg="neon.blue"
+            color="gray.900"
+            _hover={{ bg: 'neon.purple' }}
+            size="sm"
+            as={motion.button}
+            whileTap={{ scale: 0.95 }}
+          >
+            Check Answers
+          </Button>
+          <Button
+            onClick={handleShowSolution}
+            bg={showSolution ? 'gray.700' : 'neon.purple'}
+            color="gray.100"
+            _hover={{ bg: 'neon.blue' }}
+            size="sm"
+            as={motion.button}
+            whileTap={{ scale: 0.95 }}
+          >
+            {showSolution ? 'Hide Solution' : 'Show Solution'}
+          </Button>
+        </HStack>
+        {message && (
+          <Text
+            fontSize="sm"
+            color={message.includes('Congratulations') ? 'green.400' : 'red.400'}
+          >
+            {message}
+          </Text>
+        )}
+        <Text color="gray.400" fontSize="sm" mt={2}>
+          Created by Karol |{' '}
+          <a href="https://x.com/iveobod" style={{ color: '#00D1FF' }}>
+            @iveobod
+          </a>
         </Text>
-      )}
-    </MotionBox>
+      </VStack>
+      {/* Indices à droite */}
+      <Box flexGrow={1} overflowY="auto">
+        <VStack align="start" spacing={3} p={3}>
+          <Text fontSize="md" color="neon.blue" fontWeight="bold">
+            Across
+          </Text>
+          {clues.across.map(clue => (
+            <Text key={clue.number} fontSize="sm" color="gray.100">
+              {clue.number}. {clue.clue}
+            </Text>
+          ))}
+          <Text fontSize="md" color="neon.blue" fontWeight="bold">
+            Down
+          </Text>
+          {clues.down.map(clue => (
+            <Text key={clue.number} fontSize="sm" color="gray.100">
+              {clue.number}. {clue.clue}
+            </Text>
+          ))}
+        </VStack>
+      </Box>
+    </Flex>
   );
 }
